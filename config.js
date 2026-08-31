@@ -9,7 +9,16 @@ const CONFIG = {
 
   masjid: {
     nama: "Masjid Al-Ikhlas",
-    alamat: "Balikpapan, Kalimantan Timur"
+    alamat: "Balikpapan, Kalimantan Timur",
+
+    // Kosongkan jadi "" kalau belum punya logo.
+    // Taruh file logo di folder icons/, format PNG dengan latar transparan
+    // paling bagus. Contoh: "icons/logo-masjid.png"
+    logo: "",
+
+    // Pilihan font untuk nama masjid: "serif" (elegan, gaya kaligrafi Arab)
+    // atau "sans" (modern, tegas). Dua-duanya sudah dibundel di app ini.
+    fontNama: "serif"
   },
 
   // Koordinat lokasi masjid. Cara dapatkan:
@@ -48,7 +57,16 @@ const CONFIG = {
   },
 
   // Setiap berapa detik jam & status di layar diperbarui.
-  intervalUpdateDetik: 1
+  intervalUpdateDetik: 1,
+
+  hijriyah: {
+    tampilkan: true,
+    // Tanggal Hijriyah dihitung otomatis oleh browser (kalender Umm al-Qura),
+    // kadang bisa selisih 1 hari dari hasil rukyat/sidang isbat Kemenag di
+    // Indonesia. Isi angka di sini untuk koreksi manual jika perlu, misal
+    // -1 kalau browser tampil kemarin dulu, atau 1 kalau kurang sehari.
+    koreksiHari: 0
+  }
 
 };
 

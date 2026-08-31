@@ -7,6 +7,18 @@ const NAMA_BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Ag
 
 function pad(n){ return n.toString().padStart(2,'0'); }
 
+// ---- Tanggal Hijriyah, pakai kalender bawaan browser (Intl), 100% offline ----
+function hitungTanggalHijriyah(sekarang){
+  const koreksi = (CONFIG.hijriyah && CONFIG.hijriyah.koreksiHari) || 0;
+  const tanggalTerkoreksi = new Date(sekarang);
+  tanggalTerkoreksi.setDate(tanggalTerkoreksi.getDate() + koreksi);
+
+  const formatter = new Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
+  return formatter.format(tanggalTerkoreksi) + ' H';
+}
+
 // ---- 1. Hitung waktu sholat hari ini pakai Adhan.js (100% offline) ----
 function hitungJadwalHariIni(tanggal){
   const koordinat = new adhan.Coordinates(CONFIG.lokasi.latitude, CONFIG.lokasi.longitude);
@@ -72,13 +84,29 @@ function cariStatusWaktu(jadwal, sekarang){
 function renderProfil(){
   document.getElementById('elNamaMasjid').textContent = CONFIG.masjid.nama;
   document.getElementById('elAlamat').textContent = CONFIG.masjid.alamat;
+
+  const elNama = document.getElementById('elNamaMasjid');
+  elNama.classList.toggle('font-serif', CONFIG.masjid.fontNama !== 'sans');
+  elNama.classList.toggle('font-sans', CONFIG.masjid.fontNama === 'sans');
+
+  const elLogo = document.getElementById('elLogo');
+  if(CONFIG.masjid.logo){
+    elLogo.src = CONFIG.masjid.logo;
+    elLogo.style.display = 'block';
+  } else {
+    elLogo.style.display = 'none';
+  }
 }
 
 function renderJamTanggal(sekarang){
   document.getElementById('elJam').textContent =
     pad(sekarang.getHours())+':'+pad(sekarang.getMinutes())+':'+pad(sekarang.getSeconds());
-  document.getElementById('elTanggal').textContent =
-    NAMA_HARI[sekarang.getDay()]+', '+sekarang.getDate()+' '+NAMA_BULAN[sekarang.getMonth()]+' '+sekarang.getFullYear();
+
+  let teksTanggal = NAMA_HARI[sekarang.getDay()]+', '+sekarang.getDate()+' '+NAMA_BULAN[sekarang.getMonth()]+' '+sekarang.getFullYear();
+  if(CONFIG.hijriyah && CONFIG.hijriyah.tampilkan){
+    teksTanggal += '  \u00B7  ' + hitungTanggalHijriyah(sekarang);
+  }
+  document.getElementById('elTanggal').textContent = teksTanggal;
 }
 
 function renderJadwal(jadwal, sekarang){

@@ -11,6 +11,8 @@ const FILES_TO_CACHE = [
   './vendor/adhan.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png'
+  // Kalau kamu isi CONFIG.masjid.logo dengan file baru di folder icons/,
+  // tambahkan juga path-nya di sini, contoh: './icons/logo-masjid.png'
 ];
 
 self.addEventListener('install', (event) => {
