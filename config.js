@@ -8,7 +8,7 @@
 const CONFIG = {
 
   masjid: {
-    nama: "Masjid Al-Ikhlas",
+    nama: "Masjid Ibnu Khaldun",
     alamat: "Balikpapan, Kalimantan Timur",
 
     // Kosongkan jadi "" kalau belum punya logo.
