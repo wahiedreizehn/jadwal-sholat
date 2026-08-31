@@ -123,7 +123,105 @@ function renderJadwal(jadwal, sekarang){
   });
 }
 
-// ---- 4. Loop utama ----
+// ============================================================
+// Fase 2 - Azan Screen, Iqamah Screen, Mode Shalat Jumat
+// ============================================================
+
+const WAKTU_SHOLAT_KEYS = ['subuh','dzuhur','ashar','maghrib','isya'];
+const NAMA_TAMPIL = {subuh:'Subuh', dzuhur:'Dzuhur', ashar:'Ashar', maghrib:'Maghrib', isya:'Isya'};
+
+let modeAktif = 'normal'; // normal | azan | iqamah | jumat
+let waktuTriggerHariIni = new Set(); // supaya tiap waktu sholat cuma trigger 1x per hari
+let pesanIqamahIdx = 0;
+let timerHandle = null;
+
+function isHariJumat(d){ return d.getDay() === 5; }
+
+function mulaiAzan(key){
+  modeAktif = 'azan';
+  document.getElementById('ovAzanNama').textContent = NAMA_TAMPIL[key];
+  document.getElementById('ovAzan').classList.add('active');
+
+  if(CONFIG.suaraAzan){
+    const audio = document.getElementById('audioAzan');
+    audio.src = CONFIG.suaraAzan;
+    audio.play().catch(()=>{ /* browser mungkin blokir autoplay, tidak fatal */ });
+  }
+
+  clearTimeout(timerHandle);
+  timerHandle = setTimeout(()=>{
+    document.getElementById('ovAzan').classList.remove('active');
+    if(key === 'dzuhur' && isHariJumat(new Date()) && CONFIG.shalatJumat && CONFIG.shalatJumat.aktif){
+      mulaiModeJumat();
+    } else {
+      mulaiIqamah(key);
+    }
+  }, (CONFIG.durasiAzanDetik || 60) * 1000);
+}
+
+function mulaiIqamah(key){
+  modeAktif = 'iqamah';
+  const menit = (CONFIG.durasiIqamahMenit && CONFIG.durasiIqamahMenit[key]) || 10;
+  let sisaDetik = menit * 60;
+
+  document.getElementById('ovIqamahNama').textContent = 'MENUJU IQAMAH \u00B7 ' + NAMA_TAMPIL[key];
+  document.getElementById('ovIqamah').classList.add('active');
+
+  const pesanList = CONFIG.pesanIqamah && CONFIG.pesanIqamah.length ? CONFIG.pesanIqamah : ['Luruskan dan rapatkan shaf'];
+  function tampilkanPesanBerikutnya(){
+    document.getElementById('ovIqamahPesan').textContent = pesanList[pesanIqamahIdx % pesanList.length];
+    pesanIqamahIdx++;
+  }
+  tampilkanPesanBerikutnya();
+  const pesanInterval = setInterval(tampilkanPesanBerikutnya, 5000);
+
+  function render(){
+    const m = Math.floor(sisaDetik/60), s = sisaDetik%60;
+    document.getElementById('ovIqamahCountdown').textContent = pad(m)+':'+pad(s);
+  }
+  render();
+  clearTimeout(timerHandle);
+  timerHandle = setInterval(()=>{
+    sisaDetik--;
+    if(sisaDetik < 0){
+      clearInterval(timerHandle);
+      clearInterval(pesanInterval);
+      document.getElementById('ovIqamah').classList.remove('active');
+      modeAktif = 'normal';
+      return;
+    }
+    render();
+  }, 1000);
+}
+
+function mulaiModeJumat(){
+  modeAktif = 'jumat';
+  document.getElementById('ovJumatPesan').textContent = CONFIG.shalatJumat.pesan || 'Sedang berlangsung Shalat Jumat';
+  document.getElementById('ovJumat').classList.add('active');
+
+  clearTimeout(timerHandle);
+  timerHandle = setTimeout(()=>{
+    document.getElementById('ovJumat').classList.remove('active');
+    modeAktif = 'normal';
+  }, (CONFIG.shalatJumat.durasiMenit || 45) * 60 * 1000);
+}
+
+// Cek tiap detik apakah waktu sekarang pas mengenai salah satu waktu sholat
+function cekTriggerAzan(jadwal, sekarang){
+  if(modeAktif !== 'normal') return; // sedang dalam mode azan/iqamah/jumat, jangan trigger lagi
+
+  WAKTU_SHOLAT_KEYS.forEach((key)=>{
+    const waktu = jadwal[key];
+    const cocokMenit = sekarang.getHours() === waktu.getHours() && sekarang.getMinutes() === waktu.getMinutes();
+    const idHariIni = key + '-' + sekarang.toDateString();
+    if(cocokMenit && !waktuTriggerHariIni.has(idHariIni)){
+      waktuTriggerHariIni.add(idHariIni);
+      mulaiAzan(key);
+    }
+  });
+}
+
+
 let jadwalHariIni = null;
 let tanggalTerakhirDihitung = null;
 
@@ -135,16 +233,26 @@ function tick(){
   if(tanggalHariIni !== tanggalTerakhirDihitung){
     jadwalHariIni = hitungJadwalHariIni(sekarang);
     tanggalTerakhirDihitung = tanggalHariIni;
+    waktuTriggerHariIni.clear();
   }
 
   renderJamTanggal(sekarang);
   renderJadwal(jadwalHariIni, sekarang);
+  cekTriggerAzan(jadwalHariIni, sekarang);
 }
 
 function mulai(){
   renderProfil();
   tick();
   setInterval(tick, (CONFIG.intervalUpdateDetik || 1) * 1000);
+
+  // Mode simulasi untuk testing: buka index.html?simulasi=azan atau
+  // index.html?simulasi=jumat untuk lihat tampilannya tanpa perlu menunggu
+  // waktu sholat sungguhan.
+  const params = new URLSearchParams(window.location.search);
+  const simulasi = params.get('simulasi');
+  if(simulasi === 'azan') setTimeout(()=> mulaiAzan('maghrib'), 800);
+  if(simulasi === 'jumat') setTimeout(()=> mulaiModeJumat(), 800);
 }
 
 document.addEventListener('DOMContentLoaded', mulai);

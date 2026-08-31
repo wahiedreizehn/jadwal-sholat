@@ -8,7 +8,7 @@
 const CONFIG = {
 
   masjid: {
-    nama: "Masjid Ibnu Khaldun",
+    nama: "Masjid Al-Ikhlas",
     alamat: "Balikpapan, Kalimantan Timur",
 
     // Kosongkan jadi "" kalau belum punya logo.
@@ -58,6 +58,30 @@ const CONFIG = {
 
   // Setiap berapa detik jam & status di layar diperbarui.
   intervalUpdateDetik: 1,
+
+  // Durasi tampilan layar "Azan" (dalam detik) sebelum otomatis pindah
+  // ke layar countdown menuju iqamah.
+  durasiAzanDetik: 90,
+
+  // Kosongkan "" kalau belum ada file suara. Taruh file mp3 di folder
+  // sounds/, contoh: "sounds/adzan.mp3"
+  suaraAzan: "",
+
+  // Pesan yang berganti-ganti (running text) saat layar countdown iqamah.
+  pesanIqamah: [
+    "Luruskan dan rapatkan shaf",
+    "Matikan atau silent-kan HP Anda",
+    "Sempurnakan wudhu sebelum sholat"
+  ],
+
+  shalatJumat: {
+    aktif: true,
+    // Pesan yang tampil menggantikan countdown iqamah saat Dzuhur hari Jumat.
+    pesan: "Sedang berlangsung Shalat Jumat",
+    // Perkiraan total durasi khutbah + sholat Jumat (menit), untuk kembali
+    // otomatis ke tampilan normal setelahnya.
+    durasiMenit: 45
+  },
 
   hijriyah: {
     tampilkan: true,
