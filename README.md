@@ -1,8 +1,37 @@
-# Jadwal Sholat Offline — Fase 1, 2 & 3
+# Jadwal Sholat Offline — Fase 1, 2, 3 & 4
 
 Aplikasi jadwal 5 waktu sholat + terbit (offline), layar Azan & Iqamah,
-Mode Shalat Jumat, plus **panel admin** untuk mengubah pengaturan tanpa
-edit kode, tersimpan di Google Sheets.
+Mode Shalat Jumat, panel admin tersambung Google Sheets, plus blok media
+promosi, running text, info kegiatan, notifikasi hari besar, dan donasi.
+
+## Mengisi konten Fase 4 (media, running text, kegiatan, dst)
+
+Konten jenis ini diedit **langsung di tab Google Sheets kamu** (bukan lewat
+`admin.html`), setelah setup Apps Script (lihat bagian "Setup panel admin"
+di bawah). Ada 5 tab yang otomatis dibuat:
+
+- **MainSlider** — media promosi. Kolom "Tipe" isi salah satu:
+  `gambar`, `video`, atau `youtube`. Kolom "URL" isi link file/YouTube.
+- **RunningText** — 1 baris = 1 pesan yang akan bergantian tampil di teks
+  berjalan bawah layar.
+- **InfoSlide** — Judul + Deskripsi, untuk kegiatan rutin/insidental.
+- **IslamicEvent** — Nama Acara + Tanggal (format YYYY-MM-DD). Kalau
+  tanggalnya 14 hari lagi atau kurang, otomatis muncul badge "H-7" dst
+  di layar.
+- **Donasi** — info rekening/e-wallet untuk ditampilkan bergantian.
+
+Tinggal tambah/hapus/edit baris seperti Excel biasa — layar akan otomatis
+mengambil perubahan ini di sinkronisasi berikutnya (default tiap 10 menit).
+
+Blok "Info & Promosi" di layar akan **bergantian menampilkan** isi dari
+InfoSlide, MainSlider, dan Donasi setiap 6 detik.
+
+**Catatan jujur:** blok media (gambar/video/YouTube) di versi ini baru
+menampilkan **judul & keterangan tipenya** dalam bentuk teks (belum
+me-render gambar/video/YouTube sungguhan di layar) — itu penyempurnaan
+tampilan yang bisa menyusul. **Jumbotron Slider** (mode fullscreen yang
+otomatis sembunyi dekat waktu sholat) juga belum ada di fase ini,
+ditunda ke fase berikutnya.
 
 ## Setup panel admin (sekali di awal)
 
@@ -13,33 +42,23 @@ edit kode, tersimpan di Google Sheets.
    `SECRET` sama persis dengan `SECRET_KEY` di `Code.gs`.
 3. Buka `config.js`, tempel URL yang sama ke `sinkronisasi.webAppUrl`.
 4. Upload ulang semua file ke Netlify/GitHub Pages seperti biasa.
-5. Buka `admin.html` (contoh: `https://nama-app-kamu.netlify.app/admin.html`)
-   untuk mulai atur pengaturan lewat form + preview.
+5. Buka `admin.html` untuk atur pengaturan tunggal (profil, lokasi, koreksi,
+   durasi iqamah, dst) lewat form + preview.
+6. Buka Google Sheets-nya langsung untuk isi konten list (Fase 4 di atas).
 
-Catatan: `admin.html` ini **tidak punya sistem login** selain password
-sederhana yang sudah ketanam di `admin-config.js` — jangan sebarkan link
-`admin.html` ke publik, cukup dipakai sendiri oleh admin masjid.
+Catatan: `admin.html` tidak punya sistem login selain password sederhana
+di `admin-config.js` — jangan sebarkan link itu ke publik.
 
 ## Cara pakai cepat
 
 1. **Edit `config.js`** — isi nilai default (dipakai kalau panel admin
-   belum di-setup, atau sebagai fallback). Semua penjelasan ada sebagai
-   komentar di file itu.
+   belum di-setup, atau sebagai fallback).
 2. **Upload semua file** ke hosting gratis (GitHub Pages atau Netlify).
 3. Buka link hosting itu sekali di perangkat layar, supaya service worker
    menyimpan semua file ke cache lokal.
 4. Matikan WiFi dan reload untuk pastikan mode offline berfungsi.
 5. Install browser kiosk (mis. Fully Kiosk Browser), arahkan ke link
    hosting, aktifkan fullscreen + auto-start saat boot.
-
-## Bagaimana sinkronisasi bekerja
-
-- Layar akan mengambil data dari Google Sheets (lewat Apps Script) setiap
-  10 menit sekali (bisa diubah di `config.js` > `sinkronisasi.intervalMenit`).
-- Data terakhir yang berhasil diambil disimpan di Cache Storage perangkat,
-  jadi kalau internet putus, layar tetap pakai data terakhir yang valid.
-- Kalau `sinkronisasi.webAppUrl` dikosongkan, app akan berjalan seperti
-  Fase 1-2 (semua dari `config.js` lokal saja, panel admin tidak dipakai).
 
 ## Testing Azan & Iqamah tanpa menunggu waktu sholat asli
 
@@ -51,19 +70,19 @@ Tambahkan di belakang link app kamu:
 
 1. Buka jadwal resmi di bimasislam.kemenag.go.id/jadwalshalat untuk kab/kota
    kamu, bandingkan dengan hasil app ini.
-2. Isi selisihnya (menit) ke pengaturan koreksi — lewat panel admin (kalau
-   sudah setup) atau `koreksiMenit` di `config.js`.
+2. Isi selisihnya (menit) lewat panel admin atau `koreksiMenit` di `config.js`.
 
 ## Soal suara Azan
 
 Kalau kamu isi `suaraAzan` di config dengan file mp3, browser mungkin
 memblokir autoplay kalau halaman belum pernah disentuh sejak dibuka.
-Solusinya: sentuh/klik layar sekali setelah halaman pertama kali dimuat,
-setelah itu autoplay berjalan normal untuk seterusnya.
+Solusinya: sentuh/klik layar sekali setelah halaman pertama kali dimuat.
 
 ## Yang belum ada (menyusul di fase berikutnya)
 
-- Media promosi, running text, info kegiatan, donasi (Fase 4)
+- Jumbotron Slider fullscreen otomatis, render gambar/video/YouTube
+  sungguhan di blok media (Fase 5 lanjutan)
 - Mode Ramadhan, hemat energi, pilihan tema (Fase 5)
+
 
 

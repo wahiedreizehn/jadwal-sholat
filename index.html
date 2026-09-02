@@ -25,13 +25,24 @@
   .clock-block{text-align:right;}
   .clock{font-size:clamp(32px,6vw,56px);font-weight:600;font-variant-numeric:tabular-nums;line-height:1;}
   .date{font-size:clamp(11px,1.2vw,14px);color:var(--cream-dim);margin-top:6px;}
-  main{display:flex;align-items:center;justify-content:center;padding:0 min(5vw,44px);}
-  #elJadwal{display:flex;gap:16px;width:100%;max-width:1100px;}
+  main{display:flex;flex-direction:column;gap:16px;justify-content:center;padding:0 min(5vw,44px);flex:1;min-height:0;}
+  #elJadwal{display:flex;gap:16px;width:100%;max-width:1100px;margin:0 auto;}
   .prayer-item{flex:1;text-align:center;padding:clamp(16px,3vh,32px) 8px;border-radius:8px;background:var(--bg-panel);border:1px solid var(--line);}
   .prayer-item.active{border-color:var(--gold-dim);background:linear-gradient(180deg, rgba(201,169,97,0.20), rgba(201,169,97,0.05));}
   .prayer-name{font-size:clamp(12px,1.4vw,18px);color:var(--cream-dim);}
   .prayer-item.active .prayer-name{color:var(--gold);}
   .prayer-time{font-size:clamp(22px,3.6vw,44px);font-weight:500;margin-top:8px;font-variant-numeric:tabular-nums;}
+
+  .info-promosi{width:100%;max-width:1100px;margin:0 auto;background:var(--bg-panel);border:1px solid var(--line);border-radius:8px;padding:clamp(14px,2.4vh,24px) clamp(16px,3vw,32px);min-height:clamp(70px,12vh,120px);display:flex;flex-direction:column;justify-content:center;}
+  .info-promosi .ip-label{font-size:clamp(10px,1.1vw,13px);color:var(--gold-dim);letter-spacing:0.06em;margin-bottom:6px;}
+  .info-promosi .ip-title{font-size:clamp(16px,2vw,24px);color:var(--gold);font-family:'Amiri',serif;}
+  .info-promosi .ip-desc{font-size:clamp(12px,1.4vw,16px);color:var(--cream-dim);margin-top:4px;}
+
+  .event-badge{display:inline-flex;align-items:center;gap:6px;font-size:clamp(10px,1.1vw,12px);color:var(--gold);background:rgba(201,169,97,0.12);border:1px solid var(--gold-dim);border-radius:20px;padding:3px 10px;margin-top:6px;}
+
+  .ticker-wrap{border-top:1px solid var(--line);background:var(--bg-panel);padding:min(1.6vh,12px) 0;overflow:hidden;white-space:nowrap;}
+  .ticker-track{display:inline-block;padding-left:100%;animation:scroll-left 26s linear infinite;font-size:clamp(12px,1.5vw,16px);color:var(--cream);}
+  @keyframes scroll-left{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}
 
   /* ===== OVERLAY: Azan / Iqamah / Jumat ===== */
   .overlay{
@@ -66,11 +77,19 @@
     <div class="clock-block">
       <div class="clock" id="elJam">--:--:--</div>
       <div class="date" id="elTanggal">-</div>
+      <div id="elEventBadge"></div>
     </div>
   </header>
   <main>
     <div id="elJadwal"></div>
+    <div class="info-promosi" id="elInfoPromosi">
+      <div class="ip-label">INFO & PROMOSI</div>
+      <div class="ip-title">-</div>
+    </div>
   </main>
+  <div class="ticker-wrap">
+    <div class="ticker-track" id="elTicker">-</div>
+  </div>
 </div>
 
 <!-- Layar Azan -->

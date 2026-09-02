@@ -17,7 +17,14 @@
  *      "Go to [nama project] (unsafe)" > Allow/Izinkan.
  *      (Ini normal, karena scriptnya punya kamu sendiri.)
  * 7. Setelah berhasil jalan, cek Google Sheet kamu — akan otomatis
- *    terisi sheet "Pengaturan" dengan data contoh.
+ *    terisi beberapa tab: "Pengaturan", "MainSlider", "RunningText",
+ *    "InfoSlide", "IslamicEvent", "Donasi" — masing-masing dengan
+ *    contoh data.
+ *    UNTUK EDIT KONTEN SEHARI-HARI (tambah promosi, ganti pesan
+ *    berjalan, tambah kegiatan, dst): cukup edit langsung di tab-tab
+ *    sheet ini seperti Excel biasa — tambah baris baru untuk nambah
+ *    item, hapus baris untuk menghapus. Tidak perlu lewat panel admin
+ *    untuk konten jenis ini.
  * 8. Klik tombol "Deploy" (kanan atas) > "New deployment".
  * 9. Klik ikon gerigi di sebelah "Select type", pilih "Web app".
  * 10. Isi "Execute as": Me (akun kamu).
@@ -55,6 +62,7 @@ const NILAI_AWAL = {
 
 function setupSheetAwal(){
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+
   let sheet = ss.getSheetByName(SHEET_NAME);
   if(!sheet){ sheet = ss.insertSheet(SHEET_NAME); }
   sheet.clear();
@@ -63,6 +71,56 @@ function setupSheetAwal(){
     sheet.appendRow([key, NILAI_AWAL[key]]);
   });
   sheet.setFrozenRows(1);
+
+  buatSheetList('MainSlider', ['Tipe (gambar/video/youtube)', 'URL', 'Judul'], [
+    ['gambar', 'https://drive.google.com/uc?id=GANTI_DENGAN_ID_FILE', 'Kajian Subuh Rutin'],
+    ['youtube', 'https://www.youtube.com/watch?v=GANTI_ID_VIDEO', 'Profil Masjid']
+  ]);
+
+  buatSheetList('RunningText', ['Teks'], [
+    ['Selamat datang di Masjid'],
+    ['Kotak infaq tersedia di pintu masuk utama']
+  ]);
+
+  buatSheetList('InfoSlide', ['Judul', 'Deskripsi'], [
+    ['Kajian Ahad Pagi', 'Setiap Ahad ba\'da Subuh, bersama Ustadz Fauzan'],
+    ['Jumat Bersih', 'Setiap Jumat pukul 06:00, seluruh jamaah dipersilakan bergabung']
+  ]);
+
+  buatSheetList('IslamicEvent', ['Nama Acara', 'Tanggal (YYYY-MM-DD)'], [
+    ['Idul Fitri', '2027-03-20'],
+    ['Idul Adha', '2027-05-27']
+  ]);
+
+  buatSheetList('Donasi', ['Nama Rekening/E-wallet', 'Nomor/Keterangan', 'URL Gambar QR (opsional)'], [
+    ['BSI a.n. Takmir Masjid', '7123456789', '']
+  ]);
+}
+
+function buatSheetList(nama, header, contohData){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(nama);
+  if(!sheet){ sheet = ss.insertSheet(nama); }
+  sheet.clear();
+  sheet.appendRow(header);
+  contohData.forEach((row)=> sheet.appendRow(row));
+  sheet.setFrozenRows(1);
+}
+
+function bacaSheetList(nama){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(nama);
+  if(!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const header = data[0];
+  const hasil = [];
+  for(let i=1;i<data.length;i++){
+    if(!data[i][0]) continue; // lewati baris kosong
+    const item = {};
+    header.forEach((kolom, idx)=>{ item[kolom] = data[i][idx]; });
+    hasil.push(item);
+  }
+  return hasil;
 }
 
 function bacaSemuaPengaturan(){
@@ -97,6 +155,11 @@ function tulisPengaturan(dataBaru){
 
 function doGet(e){
   const hasil = bacaSemuaPengaturan();
+  hasil._mainSlider = bacaSheetList('MainSlider');
+  hasil._runningText = bacaSheetList('RunningText');
+  hasil._infoSlide = bacaSheetList('InfoSlide');
+  hasil._islamicEvent = bacaSheetList('IslamicEvent');
+  hasil._donasi = bacaSheetList('Donasi');
   return ContentService.createTextOutput(JSON.stringify(hasil))
     .setMimeType(ContentService.MimeType.JSON);
 }

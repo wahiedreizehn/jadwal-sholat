@@ -230,6 +230,8 @@ function cekTriggerAzan(jadwal, sekarang){
 const REMOTE_CACHE_NAME = 'jadwal-sholat-remote-config';
 const REMOTE_CACHE_KEY = 'https://cache.local/pengaturan-terakhir';
 
+let KONTEN = { mainSlider: [], runningText: [], infoSlide: [], islamicEvent: [], donasi: [] };
+
 function terapkanRemoteConfig(remote){
   if(!remote) return;
   if(remote.masjid_nama) CONFIG.masjid.nama = remote.masjid_nama;
@@ -257,6 +259,14 @@ function terapkanRemoteConfig(remote){
 
   if(remote.hijriyah_tampil !== undefined) CONFIG.hijriyah.tampilkan = String(remote.hijriyah_tampil).toLowerCase() === 'true';
   if(remote.hijriyah_koreksi !== undefined) CONFIG.hijriyah.koreksiHari = parseInt(remote.hijriyah_koreksi) || 0;
+
+  KONTEN = {
+    mainSlider: remote._mainSlider || KONTEN.mainSlider,
+    runningText: remote._runningText || KONTEN.runningText,
+    infoSlide: remote._infoSlide || KONTEN.infoSlide,
+    islamicEvent: remote._islamicEvent || KONTEN.islamicEvent,
+    donasi: remote._donasi || KONTEN.donasi
+  };
 
   // jadwal hari ini perlu dihitung ulang karena lokasi/metode/koreksi bisa berubah
   jadwalHariIni = hitungJadwalHariIni(new Date());
@@ -296,6 +306,61 @@ async function sinkronisasiKonfigurasi(){
   }
 }
 
+// ---- 3b. Running text, info/promosi rotasi, badge hari besar ----
+function renderTicker(){
+  const list = KONTEN.runningText.map(item => item['Teks']).filter(Boolean);
+  const teks = list.length ? list.join('   \u2022   ') : 'Selamat datang';
+  document.getElementById('elTicker').textContent = teks;
+}
+
+let infoPromosiItems = [];
+let infoPromosiIdx = 0;
+
+function bangunDaftarInfoPromosi(){
+  const dariMedia = KONTEN.mainSlider.map(item => ({
+    judul: item['Judul'] || 'Info',
+    deskripsi: item['Tipe (gambar/video/youtube)'] ? ('Media: ' + item['Tipe (gambar/video/youtube)']) : ''
+  }));
+  const dariInfo = KONTEN.infoSlide.map(item => ({
+    judul: item['Judul'] || 'Info',
+    deskripsi: item['Deskripsi'] || ''
+  }));
+  const dariDonasi = KONTEN.donasi.map(item => ({
+    judul: 'Donasi \u2014 ' + (item['Nama Rekening/E-wallet'] || ''),
+    deskripsi: item['Nomor/Keterangan'] || ''
+  }));
+  infoPromosiItems = [...dariInfo, ...dariMedia, ...dariDonasi];
+}
+
+function renderInfoPromosiSaatIni(){
+  const el = document.getElementById('elInfoPromosi');
+  if(!infoPromosiItems.length){
+    el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">Belum ada info/promosi</div>';
+    return;
+  }
+  const item = infoPromosiItems[infoPromosiIdx % infoPromosiItems.length];
+  el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">'+item.judul+'</div>'+(item.deskripsi ? '<div class="ip-desc">'+item.deskripsi+'</div>' : '');
+  infoPromosiIdx++;
+}
+
+function renderBadgeHariBesar(sekarang){
+  const el = document.getElementById('elEventBadge');
+  el.innerHTML = '';
+  let terdekat = null, selisihHariTerdekat = Infinity;
+  KONTEN.islamicEvent.forEach((ev)=>{
+    const tgl = new Date(ev['Tanggal (YYYY-MM-DD)']);
+    if(isNaN(tgl)) return;
+    const selisih = Math.ceil((tgl - sekarang) / (1000*60*60*24));
+    if(selisih >= 0 && selisih <= 14 && selisih < selisihHariTerdekat){
+      selisihHariTerdekat = selisih;
+      terdekat = ev['Nama Acara'];
+    }
+  });
+  if(terdekat){
+    el.innerHTML = '<span class="event-badge">H-'+selisihHariTerdekat+' \u00B7 '+terdekat+'</span>';
+  }
+}
+
 let jadwalHariIni = null;
 let tanggalTerakhirDihitung = null;
 
@@ -313,12 +378,17 @@ function tick(){
   renderJamTanggal(sekarang);
   renderJadwal(jadwalHariIni, sekarang);
   cekTriggerAzan(jadwalHariIni, sekarang);
+  renderTicker();
+  renderBadgeHariBesar(sekarang);
 }
 
 async function mulai(){
   renderProfil();
   await sinkronisasiKonfigurasi();
   renderProfil(); // render ulang kalau ada data baru dari sinkronisasi
+  bangunDaftarInfoPromosi();
+  renderInfoPromosiSaatIni();
+  setInterval(renderInfoPromosiSaatIni, 6000);
   tick();
   setInterval(tick, (CONFIG.intervalUpdateDetik || 1) * 1000);
 
@@ -326,6 +396,7 @@ async function mulai(){
   setInterval(async ()=>{
     await sinkronisasiKonfigurasi();
     renderProfil();
+    bangunDaftarInfoPromosi();
   }, menitSync * 60 * 1000);
 
   // Mode simulasi untuk testing: buka index.html?simulasi=azan atau
