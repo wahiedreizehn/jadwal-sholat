@@ -57,6 +57,14 @@ const CONFIG = {
   },
 
   // Setiap berapa detik jam & status di layar diperbarui.
+  // Isi dengan Web App URL yang sama seperti di admin-config.js.
+  // Kosongkan "" kalau belum setup panel admin (app akan pakai nilai
+  // di file config.js ini saja, seperti Fase 1-2).
+  sinkronisasi: {
+    webAppUrl: "",
+    intervalMenit: 10
+  },
+
   intervalUpdateDetik: 1,
 
   // Durasi tampilan layar "Azan" (dalam detik) sebelum otomatis pindah

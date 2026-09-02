@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Admin - Jadwal Sholat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page:#f4f5f3; --panel:#ffffff; --line:#e4e5e1; --text:#20241f; --text-dim:#6b7268;
+    --accent:#2f6b4f; --accent-soft:#eaf2ed;
+    --tv-deep:#0d241b; --tv-panel:#123528; --tv-gold:#c9a961; --tv-cream:#f3ede0; --tv-cream-dim:#a9bdb0; --tv-line:#2a4d3b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',sans-serif;}
+  body{background:var(--bg-page);color:var(--text);padding:20px;}
+  .app{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;max-width:1200px;margin:0 auto;}
+  @media (max-width:900px){ .app{grid-template-columns:1fr;} }
+
+  .form-panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .form-header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .form-header h1{font-size:16px;font-weight:600;}
+  .status{font-size:12px;padding:4px 10px;border-radius:20px;}
+  .status.ok{color:var(--accent);background:var(--accent-soft);}
+  .status.err{color:#a13a3a;background:#fbeaea;}
+  .status.wait{color:var(--text-dim);background:#f1f1ef;}
+
+  .tabs{display:flex;gap:4px;padding:10px 22px 0;border-bottom:1px solid var(--line);overflow-x:auto;}
+  .tab{font-size:13px;padding:8px 10px;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+  .tab.active{color:var(--accent);border-color:var(--accent);font-weight:500;}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+
+  .form-body{padding:18px 22px;display:flex;flex-direction:column;gap:14px;}
+  .field label{display:block;font-size:12.5px;font-weight:500;margin-bottom:5px;}
+  .field .hint{font-size:11px;color:var(--text-dim);margin-top:4px;}
+  .field input,.field select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:#fbfbfa;}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--accent);background:#fff;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row5{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+  .row5 .field label{font-size:11px;}
+  .switch-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+
+  .save-bar{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;background:#fafaf9;}
+  .btn{font-size:13px;padding:9px 16px;border-radius:6px;border:1px solid var(--line);cursor:pointer;background:#fff;}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .btn:disabled{opacity:0.6;cursor:not-allowed;}
+
+  .preview-panel{display:flex;flex-direction:column;gap:10px;}
+  .preview-label{font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
+  .dot{width:6px;height:6px;border-radius:50%;background:#3fae6b;display:inline-block;}
+  .tv-frame{background:var(--tv-deep);border-radius:10px;padding:14px 18px;color:var(--tv-cream);box-shadow:0 12px 28px rgba(0,0,0,0.16);}
+  .tv-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--tv-line);margin-bottom:12px;}
+  .tv-mosque{font-size:17px;color:var(--tv-gold);}
+  .tv-mosque.font-serif{font-family:'Amiri',serif;}
+  .tv-mosque.font-sans{font-family:'Outfit',sans-serif;font-weight:600;}
+  .tv-addr{font-size:10.5px;color:var(--tv-cream-dim);margin-top:2px;}
+  .tv-date{font-size:10px;color:var(--tv-cream-dim);text-align:right;margin-top:2px;}
+  .tv-clock{font-size:20px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;}
+  .tv-prayer-row{display:flex;justify-content:space-between;gap:6px;}
+  .tv-prayer-item{flex:1;text-align:center;background:var(--tv-panel);border:1px solid var(--tv-line);border-radius:5px;padding:8px 2px;}
+  .tv-prayer-item.active{border-color:var(--tv-gold);}
+  .tv-pname{font-size:10px;color:var(--tv-cream-dim);}
+  .tv-ptime{font-size:13px;font-weight:600;margin-top:3px;}
+  .tv-iqamah-tag{margin-top:10px;font-size:10.5px;color:var(--tv-cream-dim);text-align:center;}
+  .tv-iqamah-tag b{color:var(--tv-gold);}
+  .preview-note{background:var(--accent-soft);border:1px solid #cfe3d6;border-radius:8px;padding:10px 14px;font-size:12px;color:#2f5b43;line-height:1.5;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="form-panel">
+    <div class="form-header">
+      <h1>Panel admin masjid</h1>
+      <span class="status wait" id="elStatus">Memuat data...</span>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="profil">Profil</div>
+      <div class="tab" data-tab="lokasi">Lokasi & metode</div>
+      <div class="tab" data-tab="waktu">Koreksi & iqamah</div>
+      <div class="tab" data-tab="jumat">Jumat & Hijriyah</div>
+    </div>
+
+    <div class="form-body">
+
+      <div class="tab-content active" data-tab="profil">
+        <div class="field"><label>Nama masjid</label><input type="text" id="f_nama"></div>
+        <div class="field"><label>Alamat</label><input type="text" id="f_alamat"></div>
+        <div class="field"><label>Logo (link/path gambar, kosongkan jika belum ada)</label><input type="text" id="f_logo"></div>
+        <div class="field"><label>Font nama masjid</label>
+          <select id="f_font"><option value="serif">Serif (kaligrafi)</option><option value="sans">Sans (modern)</option></select>
+        </div>
+      </div>
+
+      <div class="tab-content" data-tab="lokasi">
+        <div class="row2">
+          <div class="field"><label>Latitude</label><input type="text" id="f_lat"></div>
+          <div class="field"><label>Longitude</label><input type="text" id="f_lng"></div>
+        </div>
+        <div class="field"><label>Zona waktu</label><input type="text" id="f_zona"><div class="hint">Contoh: Asia/Jakarta, Asia/Makassar, Asia/Jayapura</div></div>
+        <div class="field"><label>Metode perhitungan</label>
+          <select id="f_metode">
+            <option>Singapore</option><option>MoonsightingCommittee</option><option>MuslimWorldLeague</option>
+            <option>UmmAlQura</option><option>Egyptian</option><option>Karachi</option><option>Dubai</option>
+            <option>NorthAmerica</option><option>Kuwait</option><option>Qatar</option><option>Turkey</option><option>Tehran</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tab-content" data-tab="waktu">
+        <div class="field">
+          <label>Koreksi manual (menit) per waktu</label>
+          <div class="row5">
+            <div class="field"><label>Subuh</label><input type="text" id="k_subuh"></div>
+            <div class="field"><label>Terbit</label><input type="text" id="k_terbit"></div>
+            <div class="field"><label>Dzuhur</label><input type="text" id="k_dzuhur"></div>
+            <div class="field"><label>Ashar</label><input type="text" id="k_ashar"></div>
+            <div class="field"><label>Maghrib</label><input type="text" id="k_maghrib"></div>
+          </div>
+          <div class="row5" style="margin-top:8px;">
+            <div class="field"><label>Isya</label><input type="text" id="k_isya"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Durasi iqamah (menit) per waktu</label>
+          <div class="row5">
+            <div class="field"><label>Subuh</label><input type="text" id="iq_subuh"></div>
+            <div class="field"><label>Dzuhur</label><input type="text" id="iq_dzuhur"></div>
+            <div class="field"><label>Ashar</label><input type="text" id="iq_ashar"></div>
+            <div class="field"><label>Maghrib</label><input type="text" id="iq_maghrib"></div>
+            <div class="field"><label>Isya</label><input type="text" id="iq_isya"></div>
+          </div>
+        </div>
+        <div class="field"><label>Durasi tampil layar Azan (detik)</label><input type="text" id="f_durasiAzan"></div>
+      </div>
+
+      <div class="tab-content" data-tab="jumat">
+        <div class="switch-row"><input type="checkbox" id="f_jumatAktif"><label for="f_jumatAktif">Aktifkan Mode Shalat Jumat</label></div>
+        <div class="field"><label>Pesan saat Mode Jumat</label><input type="text" id="f_jumatPesan"></div>
+        <div class="field"><label>Perkiraan durasi Jumat (menit)</label><input type="text" id="f_jumatDurasi"></div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:6px 0;">
+        <div class="switch-row"><input type="checkbox" id="f_hijriTampil"><label for="f_hijriTampil">Tampilkan tanggal Hijriyah</label></div>
+        <div class="field"><label>Koreksi Hijriyah (hari, boleh minus)</label><input type="text" id="f_hijriKoreksi"></div>
+      </div>
+
+    </div>
+    <div class="save-bar">
+      <button class="btn" id="btnReload">Muat ulang</button>
+      <button class="btn primary" id="btnSave">Simpan ke Google Sheets</button>
+    </div>
+  </div>
+
+  <div class="preview-panel">
+    <div class="preview-label"><span class="dot"></span>Preview langsung</div>
+    <div class="tv-frame">
+      <div class="tv-header">
+        <div><div class="tv-mosque font-serif" id="pv_nama">-</div><div class="tv-addr" id="pv_alamat">-</div></div>
+        <div><div class="tv-clock">19:07:42</div><div class="tv-date">Senin, 31 Agustus 2026</div></div>
+      </div>
+      <div class="tv-prayer-row">
+        <div class="tv-prayer-item"><div class="tv-pname">Subuh</div><div class="tv-ptime">04:32</div></div>
+        <div class="tv-prayer-item"><div class="tv-pname">Dzuhur</div><div class="tv-ptime">12:05</div></div>
+        <div class="tv-prayer-item"><div class="tv-pname">Ashar</div><div class="tv-ptime">15:22</div></div>
+        <div class="tv-prayer-item active"><div class="tv-pname">Maghrib</div><div class="tv-ptime">18:07</div></div>
+        <div class="tv-prayer-item"><div class="tv-pname">Isya</div><div class="tv-ptime">19:20</div></div>
+      </div>
+      <div class="tv-iqamah-tag">Iqamah Maghrib berdurasi <b id="pv_iqMaghrib">-</b> menit setelah azan</div>
+    </div>
+    <div class="preview-note">Preview ini mengikuti apa yang kamu ketik. Klik "Simpan ke Google Sheets" untuk benar-benar mempublikasikan ke layar masjid.</div>
+  </div>
+</div>
+
+<script src="admin-config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

@@ -222,6 +222,80 @@ function cekTriggerAzan(jadwal, sekarang){
 }
 
 
+
+// ============================================================
+// Fase 3 - Sinkronisasi dari panel admin (Google Sheets via Apps Script)
+// ============================================================
+
+const REMOTE_CACHE_NAME = 'jadwal-sholat-remote-config';
+const REMOTE_CACHE_KEY = 'https://cache.local/pengaturan-terakhir';
+
+function terapkanRemoteConfig(remote){
+  if(!remote) return;
+  if(remote.masjid_nama) CONFIG.masjid.nama = remote.masjid_nama;
+  if(remote.masjid_alamat) CONFIG.masjid.alamat = remote.masjid_alamat;
+  if(remote.masjid_logo !== undefined) CONFIG.masjid.logo = remote.masjid_logo;
+  if(remote.masjid_font) CONFIG.masjid.fontNama = remote.masjid_font;
+
+  if(remote.lokasi_lat) CONFIG.lokasi.latitude = parseFloat(remote.lokasi_lat);
+  if(remote.lokasi_lng) CONFIG.lokasi.longitude = parseFloat(remote.lokasi_lng);
+  if(remote.lokasi_zona) CONFIG.lokasi.zonaWaktu = remote.lokasi_zona;
+  if(remote.metode_perhitungan) CONFIG.metodePerhitungan = remote.metode_perhitungan;
+
+  ['subuh','terbit','dzuhur','ashar','maghrib','isya'].forEach((k)=>{
+    if(remote['koreksi_'+k] !== undefined) CONFIG.koreksiMenit[k] = parseInt(remote['koreksi_'+k]) || 0;
+  });
+  ['subuh','dzuhur','ashar','maghrib','isya'].forEach((k)=>{
+    if(remote['iqamah_'+k] !== undefined) CONFIG.durasiIqamahMenit[k] = parseInt(remote['iqamah_'+k]) || 0;
+  });
+
+  if(remote.durasi_azan_detik) CONFIG.durasiAzanDetik = parseInt(remote.durasi_azan_detik) || CONFIG.durasiAzanDetik;
+
+  if(remote.jumat_aktif !== undefined) CONFIG.shalatJumat.aktif = String(remote.jumat_aktif).toLowerCase() === 'true';
+  if(remote.jumat_pesan) CONFIG.shalatJumat.pesan = remote.jumat_pesan;
+  if(remote.jumat_durasi_menit) CONFIG.shalatJumat.durasiMenit = parseInt(remote.jumat_durasi_menit) || CONFIG.shalatJumat.durasiMenit;
+
+  if(remote.hijriyah_tampil !== undefined) CONFIG.hijriyah.tampilkan = String(remote.hijriyah_tampil).toLowerCase() === 'true';
+  if(remote.hijriyah_koreksi !== undefined) CONFIG.hijriyah.koreksiHari = parseInt(remote.hijriyah_koreksi) || 0;
+
+  // jadwal hari ini perlu dihitung ulang karena lokasi/metode/koreksi bisa berubah
+  jadwalHariIni = hitungJadwalHariIni(new Date());
+  tanggalTerakhirDihitung = new Date().toDateString();
+}
+
+async function simpanCacheRemote(dataText){
+  try{
+    const cache = await caches.open(REMOTE_CACHE_NAME);
+    await cache.put(REMOTE_CACHE_KEY, new Response(dataText));
+  }catch(e){ /* Cache Storage tidak wajib berhasil, tidak fatal */ }
+}
+
+async function bacaCacheRemote(){
+  try{
+    const cache = await caches.open(REMOTE_CACHE_NAME);
+    const match = await cache.match(REMOTE_CACHE_KEY);
+    if(match) return await match.text();
+  }catch(e){ /* tidak ada cache tersimpan */ }
+  return null;
+}
+
+async function sinkronisasiKonfigurasi(){
+  const url = CONFIG.sinkronisasi && CONFIG.sinkronisasi.webAppUrl;
+  if(!url) return; // belum setup panel admin, pakai config.js apa adanya
+
+  try{
+    const res = await fetch(url);
+    const teks = await res.text();
+    terapkanRemoteConfig(JSON.parse(teks));
+    simpanCacheRemote(teks);
+  }catch(err){
+    const cached = await bacaCacheRemote();
+    if(cached){
+      try{ terapkanRemoteConfig(JSON.parse(cached)); }catch(e){}
+    }
+  }
+}
+
 let jadwalHariIni = null;
 let tanggalTerakhirDihitung = null;
 
@@ -241,10 +315,18 @@ function tick(){
   cekTriggerAzan(jadwalHariIni, sekarang);
 }
 
-function mulai(){
+async function mulai(){
   renderProfil();
+  await sinkronisasiKonfigurasi();
+  renderProfil(); // render ulang kalau ada data baru dari sinkronisasi
   tick();
   setInterval(tick, (CONFIG.intervalUpdateDetik || 1) * 1000);
+
+  const menitSync = (CONFIG.sinkronisasi && CONFIG.sinkronisasi.intervalMenit) || 10;
+  setInterval(async ()=>{
+    await sinkronisasiKonfigurasi();
+    renderProfil();
+  }, menitSync * 60 * 1000);
 
   // Mode simulasi untuk testing: buka index.html?simulasi=azan atau
   // index.html?simulasi=jumat untuk lihat tampilannya tanpa perlu menunggu
