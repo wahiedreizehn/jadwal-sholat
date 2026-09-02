@@ -317,23 +317,18 @@ let infoPromosiItems = [];
 let infoPromosiIdx = 0;
 
 function bangunDaftarInfoPromosi(){
-  const dariInfo = KONTEN.infoSlide.map(item => ({
-    tipe: 'teks',
-    judul: item['Judul'] || 'Info',
-    deskripsi: item['Deskripsi'] || ''
-  }));
-  const dariMedia = KONTEN.mainSlider.map(item => ({
-    tipe: (item['Tipe (gambar/video/youtube)'] || 'teks').toLowerCase().trim(),
+  infoItems = [
+    ...KONTEN.infoSlide.map(item => ({ judul: item['Judul'] || 'Info', deskripsi: item['Deskripsi'] || '' })),
+    ...KONTEN.donasi.map(item => ({
+      judul: 'Donasi \u2014 ' + (item['Nama Rekening/E-wallet'] || ''),
+      deskripsi: String(item['Nomor/Keterangan'] || '')
+    }))
+  ];
+  mediaItems = KONTEN.mainSlider.map(item => ({
+    tipe: (item['Tipe (gambar/video/youtube)'] || '').toLowerCase().trim(),
     url: item['URL'] || '',
     judul: item['Judul'] || ''
-  }));
-  const dariDonasi = KONTEN.donasi.map(item => ({
-    tipe: item['URL Gambar QR (opsional)'] ? 'gambar' : 'teks',
-    url: item['URL Gambar QR (opsional)'] || '',
-    judul: 'Donasi \u2014 ' + (item['Nama Rekening/E-wallet'] || ''),
-    deskripsi: String(item['Nomor/Keterangan'] || '')
-  }));
-  infoPromosiItems = [...dariInfo, ...dariMedia, ...dariDonasi];
+  })).filter(m => m.url);
 }
 
 function idYoutubeDari(url){
@@ -341,35 +336,64 @@ function idYoutubeDari(url){
   return m ? m[1] : null;
 }
 
-function renderInfoPromosiSaatIni(){
-  const el = document.getElementById('elInfoPromosi');
-  if(!infoPromosiItems.length){
-    el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">Belum ada info/promosi</div>';
+// ---- Blok INFO: rotasi teks setiap 8 detik, independen dari media ----
+let infoItems = [];
+let infoIdx = 0;
+
+function renderInfoSaatIni(){
+  const el = document.getElementById('elInfoBlock');
+  if(!infoItems.length){
+    el.innerHTML = '<div class="ip-label">INFO</div><div class="ip-title">Belum ada info</div>';
+    return;
+  }
+  const item = infoItems[infoIdx % infoItems.length];
+  infoIdx++;
+  el.innerHTML = '<div class="ip-label">INFO</div><div class="ip-title">'+item.judul+'</div>'+(item.deskripsi ? '<div class="ip-desc">'+item.deskripsi+'</div>' : '');
+}
+
+// ---- Blok MEDIA: rotasi gambar/video/YouTube, video ditunggu sampai
+// selesai diputar dulu baru pindah item berikutnya ----
+let mediaItems = [];
+let mediaIdx = 0;
+let mediaTimerHandle = null;
+
+function jadwalkanMediaBerikutnya(delayMs){
+  clearTimeout(mediaTimerHandle);
+  mediaTimerHandle = setTimeout(renderMediaSaatIni, delayMs);
+}
+
+function renderMediaSaatIni(){
+  const el = document.getElementById('elMediaBlock');
+  if(!mediaItems.length){
+    el.innerHTML = '<div class="ip-empty">Belum ada media promosi</div>';
     return;
   }
 
-  let item = infoPromosiItems[infoPromosiIdx % infoPromosiItems.length];
-  infoPromosiIdx++;
-
-  // YouTube butuh internet untuk streaming; kalau sedang offline, lewati dan
-  // coba item berikutnya supaya layar tidak menampilkan kotak kosong.
-  if(item.tipe === 'youtube' && !navigator.onLine){
-    if(infoPromosiItems.length > 1) item = infoPromosiItems[infoPromosiIdx % infoPromosiItems.length];
+  let item = mediaItems[mediaIdx % mediaItems.length];
+  if(item.tipe === 'youtube' && !navigator.onLine && mediaItems.length > 1){
+    mediaIdx++;
+    item = mediaItems[mediaIdx % mediaItems.length];
   }
+  mediaIdx++;
 
-  if(item.tipe === 'gambar' && item.url){
+  if(item.tipe === 'gambar'){
     el.innerHTML = '<img src="'+item.url+'" alt="'+(item.judul||'')+'" class="ip-media" onerror="this.replaceWith(document.createTextNode(\'Gagal memuat gambar\'))">';
-  } else if(item.tipe === 'video' && item.url){
-    el.innerHTML = '<video src="'+item.url+'" class="ip-media" autoplay muted loop playsinline></video>';
-  } else if(item.tipe === 'youtube' && item.url){
+    jadwalkanMediaBerikutnya(10000); // gambar tampil 10 detik
+  } else if(item.tipe === 'video'){
+    el.innerHTML = '<video src="'+item.url+'" class="ip-media" autoplay muted playsinline></video>';
+    const videoEl = el.querySelector('video');
+    videoEl.addEventListener('ended', ()=> renderMediaSaatIni());
+    videoEl.addEventListener('error', ()=> jadwalkanMediaBerikutnya(3000)); // gagal load, coba item berikutnya
+  } else if(item.tipe === 'youtube'){
     const id = idYoutubeDari(item.url);
     if(id){
-      el.innerHTML = '<iframe class="ip-media" src="https://www.youtube.com/embed/'+id+'?autoplay=1&mute=1&loop=1&playlist='+id+'&controls=0" allow="autoplay" frameborder="0"></iframe>';
+      el.innerHTML = '<iframe class="ip-media" src="https://www.youtube.com/embed/'+id+'?autoplay=1&mute=1&controls=0" allow="autoplay" frameborder="0"></iframe>';
+      jadwalkanMediaBerikutnya(30000); // YouTube: kita tidak bisa deteksi "selesai" dengan mudah, kasih durasi tetap 30 detik
     } else {
-      el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">Link YouTube tidak valid</div>';
+      jadwalkanMediaBerikutnya(1000);
     }
   } else {
-    el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">'+item.judul+'</div>'+(item.deskripsi ? '<div class="ip-desc">'+item.deskripsi+'</div>' : '');
+    jadwalkanMediaBerikutnya(1000);
   }
 }
 
@@ -417,8 +441,9 @@ async function mulai(){
   await sinkronisasiKonfigurasi();
   renderProfil(); // render ulang kalau ada data baru dari sinkronisasi
   bangunDaftarInfoPromosi();
-  renderInfoPromosiSaatIni();
-  setInterval(renderInfoPromosiSaatIni, 6000);
+  renderInfoSaatIni();
+  setInterval(renderInfoSaatIni, 8000);
+  renderMediaSaatIni();
   tick();
   setInterval(tick, (CONFIG.intervalUpdateDetik || 1) * 1000);
 

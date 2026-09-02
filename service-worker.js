@@ -1,7 +1,7 @@
 // Service worker: simpan semua file app ke cache lokal perangkat,
 // supaya layar tetap jalan walau internet mati/putus.
 
-const CACHE_NAME = 'jadwal-sholat-v5'; // <- naikkan angka ini SETIAP kali kamu upload perubahan file
+const CACHE_NAME = 'jadwal-sholat-v6'; // <- naikkan angka ini SETIAP kali kamu upload perubahan file
 // Kalau kamu tambah file video/gambar lokal di folder media/, tambahkan juga
 // path-nya di sini, contoh: './media/promo-donasi.mp4'
 const FILES_TO_CACHE = [
