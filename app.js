@@ -16,7 +16,7 @@ function hitungTanggalHijriyah(sekarang){
   const formatter = new Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura', {
     day: 'numeric', month: 'long', year: 'numeric'
   });
-  return formatter.format(tanggalTerkoreksi) + ' H';
+  return formatter.format(tanggalTerkoreksi); // formatter sudah otomatis menyertakan "H" di akhir
 }
 
 // ---- 1. Hitung waktu sholat hari ini pakai Adhan.js (100% offline) ----
