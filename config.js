@@ -61,7 +61,7 @@ const CONFIG = {
   // Kosongkan "" kalau belum setup panel admin (app akan pakai nilai
   // di file config.js ini saja, seperti Fase 1-2).
   sinkronisasi: {
-    webAppUrl: "",
+    webAppUrl: "https://script.google.com/macros/s/AKfycbzA2kzg6IZdTEFl9aYrhRNKFRCIu1CV2xgcCTiSC4AypbXLnFlLcFdZN8zulSqkLDLcOQ/exec",
     intervalMenit: 10
   },
 
