@@ -33,7 +33,31 @@ tampilan yang bisa menyusul. **Jumbotron Slider** (mode fullscreen yang
 otomatis sembunyi dekat waktu sholat) juga belum ada di fase ini,
 ditunda ke fase berikutnya.
 
-## Setup panel admin (sekali di awal)
+## Cara isi media di tab MainSlider (gambar/video/YouTube)
+
+Kolom "Tipe" isi salah satu dari 3 pilihan ini, sesuai kebutuhan:
+
+- **`gambar`** — Kolom URL isi link gambar. Kalau dari Google Drive:
+  klik kanan file > Share > ubah jadi "Anyone with the link", lalu pakai
+  format URL `https://drive.google.com/uc?id=ID_FILE_KAMU` (ambil ID_FILE
+  dari link share Google Drive).
+- **`video`** (untuk **offline sungguhan**, direkomendasikan) — download
+  file video kamu (mp4), taruh di folder `media/` di project ini (buat
+  folder itu kalau belum ada), lalu isi URL dengan path relatif, contoh:
+  `media/promo-donasi.mp4`. **Wajib tambahkan juga path itu** ke daftar
+  `FILES_TO_CACHE` di `service-worker.js` (ada contoh formatnya di situ),
+  supaya video ikut ter-cache dan tetap tampil walau internet mati.
+- **`youtube`** — tempel link video YouTube apa adanya. **Catatan
+  penting: ini BUTUH internet untuk streaming**, tidak bisa offline sama
+  sekali (ini keterbatasan bawaan YouTube, bukan aplikasi ini). Kalau
+  layar sedang offline, item YouTube otomatis dilewati dan lanjut ke
+  item berikutnya supaya tidak menampilkan kotak kosong.
+
+**Kesimpulan soal offline:** kalau kamu mau video benar-benar tampil
+walau internet mati, **pakai tipe `video` dengan file lokal**, bukan
+`youtube`.
+
+
 
 1. Buka file `apps-script/Code.gs`, ikuti panduan lengkap yang ada di
    komentar paling atas file itu (buat Google Sheet baru, paste script,

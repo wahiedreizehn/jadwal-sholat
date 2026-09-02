@@ -317,19 +317,28 @@ let infoPromosiItems = [];
 let infoPromosiIdx = 0;
 
 function bangunDaftarInfoPromosi(){
-  const dariMedia = KONTEN.mainSlider.map(item => ({
-    judul: item['Judul'] || 'Info',
-    deskripsi: item['Tipe (gambar/video/youtube)'] ? ('Media: ' + item['Tipe (gambar/video/youtube)']) : ''
-  }));
   const dariInfo = KONTEN.infoSlide.map(item => ({
+    tipe: 'teks',
     judul: item['Judul'] || 'Info',
     deskripsi: item['Deskripsi'] || ''
   }));
+  const dariMedia = KONTEN.mainSlider.map(item => ({
+    tipe: (item['Tipe (gambar/video/youtube)'] || 'teks').toLowerCase().trim(),
+    url: item['URL'] || '',
+    judul: item['Judul'] || ''
+  }));
   const dariDonasi = KONTEN.donasi.map(item => ({
+    tipe: item['URL Gambar QR (opsional)'] ? 'gambar' : 'teks',
+    url: item['URL Gambar QR (opsional)'] || '',
     judul: 'Donasi \u2014 ' + (item['Nama Rekening/E-wallet'] || ''),
-    deskripsi: item['Nomor/Keterangan'] || ''
+    deskripsi: String(item['Nomor/Keterangan'] || '')
   }));
   infoPromosiItems = [...dariInfo, ...dariMedia, ...dariDonasi];
+}
+
+function idYoutubeDari(url){
+  const m = url.match(/(?:youtu\.be\/|v=|embed\/)([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : null;
 }
 
 function renderInfoPromosiSaatIni(){
@@ -338,9 +347,30 @@ function renderInfoPromosiSaatIni(){
     el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">Belum ada info/promosi</div>';
     return;
   }
-  const item = infoPromosiItems[infoPromosiIdx % infoPromosiItems.length];
-  el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">'+item.judul+'</div>'+(item.deskripsi ? '<div class="ip-desc">'+item.deskripsi+'</div>' : '');
+
+  let item = infoPromosiItems[infoPromosiIdx % infoPromosiItems.length];
   infoPromosiIdx++;
+
+  // YouTube butuh internet untuk streaming; kalau sedang offline, lewati dan
+  // coba item berikutnya supaya layar tidak menampilkan kotak kosong.
+  if(item.tipe === 'youtube' && !navigator.onLine){
+    if(infoPromosiItems.length > 1) item = infoPromosiItems[infoPromosiIdx % infoPromosiItems.length];
+  }
+
+  if(item.tipe === 'gambar' && item.url){
+    el.innerHTML = '<img src="'+item.url+'" alt="'+(item.judul||'')+'" class="ip-media" onerror="this.replaceWith(document.createTextNode(\'Gagal memuat gambar\'))">';
+  } else if(item.tipe === 'video' && item.url){
+    el.innerHTML = '<video src="'+item.url+'" class="ip-media" autoplay muted loop playsinline></video>';
+  } else if(item.tipe === 'youtube' && item.url){
+    const id = idYoutubeDari(item.url);
+    if(id){
+      el.innerHTML = '<iframe class="ip-media" src="https://www.youtube.com/embed/'+id+'?autoplay=1&mute=1&loop=1&playlist='+id+'&controls=0" allow="autoplay" frameborder="0"></iframe>';
+    } else {
+      el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">Link YouTube tidak valid</div>';
+    }
+  } else {
+    el.innerHTML = '<div class="ip-label">INFO & PROMOSI</div><div class="ip-title">'+item.judul+'</div>'+(item.deskripsi ? '<div class="ip-desc">'+item.deskripsi+'</div>' : '');
+  }
 }
 
 function renderBadgeHariBesar(sekarang){
