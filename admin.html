@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
 <style>
   :root{
     --bg-page:#f4f5f3; --panel:#ffffff; --line:#e4e5e1; --text:#20241f; --text-dim:#6b7268;
@@ -66,11 +70,37 @@
   .tv-iqamah-tag{margin-top:10px;font-size:10.5px;color:var(--tv-cream-dim);text-align:center;}
   .tv-iqamah-tag b{color:var(--tv-gold);}
   .preview-note{background:var(--accent-soft);border:1px solid #cfe3d6;border-radius:8px;padding:10px 14px;font-size:12px;color:#2f5b43;line-height:1.5;}
+
+  .list-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;padding:10px;background:#fafaf9;border:1px solid var(--line);border-radius:6px;}
+  .list-row .list-fields{flex:1;display:flex;flex-direction:column;gap:6px;}
+  .list-row input{padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;}
+  .list-row .btn-hapus{font-size:11px;padding:6px 8px;border:1px solid var(--line);background:#fff;border-radius:5px;cursor:pointer;color:#a13a3a;flex-shrink:0;}
+  .list-editor{margin-bottom:10px;}
+
+  .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:32px;width:320px;}
+  .login-box h1{font-size:16px;font-weight:600;margin-bottom:18px;}
+  .login-box .field{margin-bottom:12px;}
+  .login-box label{display:block;font-size:12.5px;font-weight:500;margin-bottom:5px;}
+  .login-box input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;}
 </style>
 </head>
 <body>
 
-<div class="app">
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h1>Login Panel Admin</h1>
+    <div class="field"><label>Email</label><input type="email" id="loginEmail"></div>
+    <div class="field"><label>Password</label><input type="password" id="loginPassword"></div>
+    <button class="btn primary" id="btnLogin" style="width:100%;">Masuk</button>
+    <div class="hint" id="loginError" style="color:#a13a3a;margin-top:8px;"></div>
+  </div>
+</div>
+
+<div class="app" id="appContent" style="display:none;">
+  <div style="grid-column:1 / -1;display:flex;justify-content:flex-end;margin-bottom:-4px;">
+    <button class="btn" id="btnLogout" style="font-size:11px;">Logout</button>
+  </div>
   <div class="form-panel">
     <div class="form-header">
       <h1>Panel admin masjid</h1>
@@ -80,7 +110,13 @@
       <div class="tab active" data-tab="profil">Profil</div>
       <div class="tab" data-tab="lokasi">Lokasi & metode</div>
       <div class="tab" data-tab="waktu">Koreksi & iqamah</div>
-      <div class="tab" data-tab="jumat">Jumat & Hijriyah</div>
+      <div class="tab" data-tab="jumat">Jumat, Ramadhan & Hijriyah</div>
+      <div class="tab" data-tab="lanjutan">Jumbotron, Murattal & Hemat Energi</div>
+      <div class="tab" data-tab="media">Media Promosi</div>
+      <div class="tab" data-tab="runningtext">Running Text</div>
+      <div class="tab" data-tab="infoslide">Info Kegiatan</div>
+      <div class="tab" data-tab="event">Hari Besar</div>
+      <div class="tab" data-tab="donasi">Donasi</div>
     </div>
 
     <div class="form-body">
@@ -91,6 +127,10 @@
         <div class="field"><label>Logo (link/path gambar, kosongkan jika belum ada)</label><input type="text" id="f_logo"></div>
         <div class="field"><label>Font nama masjid</label>
           <select id="f_font"><option value="serif">Serif (kaligrafi)</option><option value="sans">Sans (modern)</option></select>
+        </div>
+        <div class="field"><label>Nomor WhatsApp Admin (opsional)</label><input type="text" id="f_whatsapp"></div>
+        <div class="field"><label>Tema tampilan</label>
+          <select id="f_tema"><option value="signature">Signature (hijau-emas)</option><option value="simplicity">Simplicity (terang)</option><option value="malam-biru">Malam Biru</option></select>
         </div>
       </div>
 
@@ -143,12 +183,63 @@
         <hr style="border:none;border-top:1px solid var(--line);margin:6px 0;">
         <div class="switch-row"><input type="checkbox" id="f_hijriTampil"><label for="f_hijriTampil">Tampilkan tanggal Hijriyah</label></div>
         <div class="field"><label>Koreksi Hijriyah (hari, boleh minus)</label><input type="text" id="f_hijriKoreksi"></div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:6px 0;">
+        <div class="switch-row"><input type="checkbox" id="f_ramadhanAktif"><label for="f_ramadhanAktif">Aktifkan Mode Ramadhan</label></div>
+        <div class="row2">
+          <div class="field"><label>Selisih Imsak-Subuh (menit)</label><input type="text" id="f_ramadhanImsak"></div>
+          <div class="field"><label>Durasi layar Tarawih (menit)</label><input type="text" id="f_ramadhanTarawih"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" data-tab="lanjutan">
+        <div class="switch-row"><input type="checkbox" id="f_jumbotronAktif"><label for="f_jumbotronAktif">Aktifkan Jumbotron Slider (fullscreen)</label></div>
+        <div class="field"><label>Sembunyikan Jumbotron X menit sebelum sholat</label><input type="text" id="f_jumbotronMenit"></div>
+        <div id="editor_jumbotron" class="list-editor" style="margin-top:8px;"></div>
+        <button class="btn" data-tambah="jumbotron">+ Tambah media Jumbotron</button>
+        <hr style="border:none;border-top:1px solid var(--line);margin:14px 0;">
+        <div class="switch-row"><input type="checkbox" id="f_murattalAktif"><label for="f_murattalAktif">Aktifkan Murattal terjadwal</label></div>
+        <div class="row2">
+          <div class="field"><label>Menit sebelum azan</label><input type="text" id="f_murattalMenit"></div>
+          <div class="field"><label>File audio (path di folder media/)</label><input type="text" id="f_murattalFile"></div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:14px 0;">
+        <div class="switch-row"><input type="checkbox" id="f_hematAktif"><label for="f_hematAktif">Aktifkan Mode Hemat Energi</label></div>
+        <div class="row2">
+          <div class="field"><label>Layar gelap mulai jam (HH:MM)</label><input type="text" id="f_hematMulai"></div>
+          <div class="field"><label>Sampai jam (HH:MM)</label><input type="text" id="f_hematSelesai"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" data-tab="media">
+        <div id="editor_mainSlider" class="list-editor"></div>
+        <button class="btn" data-tambah="mainSlider">+ Tambah media</button>
+        <div class="hint" style="margin-top:8px;">Tipe isi salah satu: gambar, video, atau youtube. Untuk video offline, isi URL dengan path lokal seperti media/nama-file.mp4</div>
+      </div>
+
+      <div class="tab-content" data-tab="runningtext">
+        <div id="editor_runningText" class="list-editor"></div>
+        <button class="btn" data-tambah="runningText">+ Tambah pesan</button>
+      </div>
+
+      <div class="tab-content" data-tab="infoslide">
+        <div id="editor_infoSlide" class="list-editor"></div>
+        <button class="btn" data-tambah="infoSlide">+ Tambah info</button>
+      </div>
+
+      <div class="tab-content" data-tab="event">
+        <div id="editor_islamicEvent" class="list-editor"></div>
+        <button class="btn" data-tambah="islamicEvent">+ Tambah acara</button>
+      </div>
+
+      <div class="tab-content" data-tab="donasi">
+        <div id="editor_donasi" class="list-editor"></div>
+        <button class="btn" data-tambah="donasi">+ Tambah rekening</button>
       </div>
 
     </div>
     <div class="save-bar">
       <button class="btn" id="btnReload">Muat ulang</button>
-      <button class="btn primary" id="btnSave">Simpan ke Google Sheets</button>
+      <button class="btn primary" id="btnSave">Simpan Perubahan</button>
     </div>
   </div>
 
@@ -168,11 +259,10 @@
       </div>
       <div class="tv-iqamah-tag">Iqamah Maghrib berdurasi <b id="pv_iqMaghrib">-</b> menit setelah azan</div>
     </div>
-    <div class="preview-note">Preview ini mengikuti apa yang kamu ketik. Klik "Simpan ke Google Sheets" untuk benar-benar mempublikasikan ke layar masjid.</div>
+    <div class="preview-note">Preview ini mengikuti apa yang kamu ketik. Klik "Simpan Perubahan" untuk benar-benar mempublikasikan ke layar masjid.</div>
   </div>
 </div>
 
-<script src="admin-config.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

@@ -18,7 +18,44 @@ const CONFIG = {
 
     // Pilihan font untuk nama masjid: "serif" (elegan, gaya kaligrafi Arab)
     // atau "sans" (modern, tegas). Dua-duanya sudah dibundel di app ini.
-    fontNama: "serif"
+    fontNama: "serif",
+
+    // Kosongkan "" kalau belum ada. Format bebas, contoh: "0812-3456-7890"
+    whatsappAdmin: ""
+  },
+
+  // Pilihan tema visual: "signature" (hijau-emas, default), "simplicity"
+  // (terang/minimalis), atau "malam-biru" (biru gelap).
+  tema: "signature",
+
+  jumbotron: {
+    aktif: false,
+    // Berapa menit sebelum waktu sholat, layar otomatis kembali ke
+    // tampilan jadwal normal (menyembunyikan Jumbotron).
+    sembunyikanMenitSebelum: 10
+  },
+
+  ramadhan: {
+    aktif: false,
+    // Selisih menit antara Imsak dan Subuh (Imsak = Subuh - angka ini).
+    selisihImsakMenit: 10,
+    // Durasi layar khusyuk Tarawih setelah iqamah Isya selesai (menit).
+    durasiTarawihMenit: 45
+  },
+
+  murattal: {
+    aktif: false,
+    menitSebelumAzan: 10,
+    // Path file mp3 murattal, taruh di folder media/ seperti video.
+    file: ""
+  },
+
+  hematEnergi: {
+    aktif: false,
+    // Layar meredup otomatis di luar rentang jam ini (format HH:MM).
+    // Aman melewati tengah malam, contoh: mulai "23:00" selesai "03:30".
+    mulaiJam: "23:00",
+    selesaiJam: "03:30"
   },
 
   // Koordinat lokasi masjid. Cara dapatkan:
@@ -57,14 +94,6 @@ const CONFIG = {
   },
 
   // Setiap berapa detik jam & status di layar diperbarui.
-  // Isi dengan Web App URL yang sama seperti di admin-config.js.
-  // Kosongkan "" kalau belum setup panel admin (app akan pakai nilai
-  // di file config.js ini saja, seperti Fase 1-2).
-  sinkronisasi: {
-    webAppUrl: "https://script.google.com/macros/s/AKfycbzA2kzg6IZdTEFl9aYrhRNKFRCIu1CV2xgcCTiSC4AypbXLnFlLcFdZN8zulSqkLDLcOQ/exec",
-    intervalMenit: 10
-  },
-
   intervalUpdateDetik: 1,
 
   // Durasi tampilan layar "Azan" (dalam detik) sebelum otomatis pindah

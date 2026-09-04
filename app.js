@@ -82,8 +82,10 @@ function cariStatusWaktu(jadwal, sekarang){
 
 // ---- 3. Render ke DOM ----
 function renderProfil(){
+  document.body.dataset.tema = CONFIG.tema || 'signature';
+
   document.getElementById('elNamaMasjid').textContent = CONFIG.masjid.nama;
-  document.getElementById('elAlamat').textContent = CONFIG.masjid.alamat;
+  document.getElementById('elAlamat').textContent = CONFIG.masjid.alamat + (CONFIG.masjid.whatsappAdmin ? '  \u00B7  WA Admin: ' + CONFIG.masjid.whatsappAdmin : '');
 
   const elNama = document.getElementById('elNamaMasjid');
   elNama.classList.toggle('font-serif', CONFIG.masjid.fontNama !== 'sans');
@@ -113,6 +115,15 @@ function renderJadwal(jadwal, sekarang){
   const el = document.getElementById('elJadwal');
   el.innerHTML = '';
   const {urutan, aktifIdx} = cariStatusWaktu(jadwal, sekarang);
+
+  if(CONFIG.ramadhan && CONFIG.ramadhan.aktif){
+    const imsak = new Date(jadwal.subuh);
+    imsak.setMinutes(imsak.getMinutes() - (CONFIG.ramadhan.selisihImsakMenit || 10));
+    const divImsak = document.createElement('div');
+    divImsak.className = 'prayer-item';
+    divImsak.innerHTML = '<div class="prayer-name">Imsak</div><div class="prayer-time">'+pad(imsak.getHours())+':'+pad(imsak.getMinutes())+'</div>';
+    el.appendChild(divImsak);
+  }
 
   urutan.forEach((item, idx)=>{
     const div = document.createElement('div');
@@ -187,11 +198,25 @@ function mulaiIqamah(key){
       clearInterval(timerHandle);
       clearInterval(pesanInterval);
       document.getElementById('ovIqamah').classList.remove('active');
-      modeAktif = 'normal';
+      if(key === 'isya' && CONFIG.ramadhan && CONFIG.ramadhan.aktif){
+        mulaiModeTarawih();
+      } else {
+        modeAktif = 'normal';
+      }
       return;
     }
     render();
   }, 1000);
+}
+
+function mulaiModeTarawih(){
+  modeAktif = 'tarawih';
+  document.getElementById('ovTarawih').classList.add('active');
+  clearTimeout(timerHandle);
+  timerHandle = setTimeout(()=>{
+    document.getElementById('ovTarawih').classList.remove('active');
+    modeAktif = 'normal';
+  }, (CONFIG.ramadhan.durasiTarawihMenit || 45) * 60 * 1000);
 }
 
 function mulaiModeJumat(){
@@ -224,13 +249,11 @@ function cekTriggerAzan(jadwal, sekarang){
 
 
 // ============================================================
-// Fase 3 - Sinkronisasi dari panel admin (Google Sheets via Apps Script)
+// Sinkronisasi dari panel admin (Firebase Firestore, real-time)
 // ============================================================
 
-const REMOTE_CACHE_NAME = 'jadwal-sholat-remote-config';
-const REMOTE_CACHE_KEY = 'https://cache.local/pengaturan-terakhir';
-
-let KONTEN = { mainSlider: [], runningText: [], infoSlide: [], islamicEvent: [], donasi: [] };
+let KONTEN = { mainSlider: [], runningText: [], infoSlide: [], islamicEvent: [], donasi: [], jumbotron: [] };
+let dbFirestore = null;
 
 function terapkanRemoteConfig(remote){
   if(!remote) return;
@@ -260,51 +283,63 @@ function terapkanRemoteConfig(remote){
   if(remote.hijriyah_tampil !== undefined) CONFIG.hijriyah.tampilkan = String(remote.hijriyah_tampil).toLowerCase() === 'true';
   if(remote.hijriyah_koreksi !== undefined) CONFIG.hijriyah.koreksiHari = parseInt(remote.hijriyah_koreksi) || 0;
 
-  KONTEN = {
-    mainSlider: remote._mainSlider || KONTEN.mainSlider,
-    runningText: remote._runningText || KONTEN.runningText,
-    infoSlide: remote._infoSlide || KONTEN.infoSlide,
-    islamicEvent: remote._islamicEvent || KONTEN.islamicEvent,
-    donasi: remote._donasi || KONTEN.donasi
-  };
+  if(remote.masjid_whatsapp !== undefined) CONFIG.masjid.whatsappAdmin = remote.masjid_whatsapp;
+  if(remote.tema) CONFIG.tema = remote.tema;
+
+  if(remote.jumbotron_aktif !== undefined) CONFIG.jumbotron.aktif = String(remote.jumbotron_aktif).toLowerCase() === 'true';
+  if(remote.jumbotron_menit_sebelum !== undefined) CONFIG.jumbotron.sembunyikanMenitSebelum = parseInt(remote.jumbotron_menit_sebelum) || 10;
+
+  if(remote.ramadhan_aktif !== undefined) CONFIG.ramadhan.aktif = String(remote.ramadhan_aktif).toLowerCase() === 'true';
+  if(remote.ramadhan_selisih_imsak_menit !== undefined) CONFIG.ramadhan.selisihImsakMenit = parseInt(remote.ramadhan_selisih_imsak_menit) || 10;
+  if(remote.ramadhan_durasi_tarawih_menit !== undefined) CONFIG.ramadhan.durasiTarawihMenit = parseInt(remote.ramadhan_durasi_tarawih_menit) || 45;
+
+  if(remote.murattal_aktif !== undefined) CONFIG.murattal.aktif = String(remote.murattal_aktif).toLowerCase() === 'true';
+  if(remote.murattal_menit_sebelum !== undefined) CONFIG.murattal.menitSebelumAzan = parseInt(remote.murattal_menit_sebelum) || 10;
+  if(remote.murattal_file !== undefined) CONFIG.murattal.file = remote.murattal_file;
+
+  if(remote.hemat_energi_aktif !== undefined) CONFIG.hematEnergi.aktif = String(remote.hemat_energi_aktif).toLowerCase() === 'true';
+  if(remote.hemat_mulai_jam) CONFIG.hematEnergi.mulaiJam = remote.hemat_mulai_jam;
+  if(remote.hemat_selesai_jam) CONFIG.hematEnergi.selesaiJam = remote.hemat_selesai_jam;
 
   // jadwal hari ini perlu dihitung ulang karena lokasi/metode/koreksi bisa berubah
   jadwalHariIni = hitungJadwalHariIni(new Date());
   tanggalTerakhirDihitung = new Date().toDateString();
+
+  renderProfil();
 }
 
-async function simpanCacheRemote(dataText){
-  try{
-    const cache = await caches.open(REMOTE_CACHE_NAME);
-    await cache.put(REMOTE_CACHE_KEY, new Response(dataText));
-  }catch(e){ /* Cache Storage tidak wajib berhasil, tidak fatal */ }
-}
-
-async function bacaCacheRemote(){
-  try{
-    const cache = await caches.open(REMOTE_CACHE_NAME);
-    const match = await cache.match(REMOTE_CACHE_KEY);
-    if(match) return await match.text();
-  }catch(e){ /* tidak ada cache tersimpan */ }
-  return null;
-}
-
-async function sinkronisasiKonfigurasi(){
-  const url = CONFIG.sinkronisasi && CONFIG.sinkronisasi.webAppUrl;
-  if(!url) return; // belum setup panel admin, pakai config.js apa adanya
-
-  try{
-    const res = await fetch(url);
-    const teks = await res.text();
-    terapkanRemoteConfig(JSON.parse(teks));
-    simpanCacheRemote(teks);
-  }catch(err){
-    const cached = await bacaCacheRemote();
-    if(cached){
-      try{ terapkanRemoteConfig(JSON.parse(cached)); }catch(e){}
-    }
+function pasangListenerFirestore(){
+  if(!window.firebase || !FIREBASE_CONFIG || FIREBASE_CONFIG.apiKey === 'TEMPEL_DI_SINI'){
+    return; // firebase-config.js belum diisi, jalan dengan config.js lokal saja
   }
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  dbFirestore = firebase.firestore();
+  try{ dbFirestore.enablePersistence({synchronizeTabs:true}); }catch(e){ /* offline persistence gagal diaktifkan, tidak fatal */ }
+
+  // Dengarkan perubahan pengaturan utama secara real-time
+  dbFirestore.collection('pengaturan').doc('utama').onSnapshot((doc)=>{
+    if(doc.exists) terapkanRemoteConfig(doc.data());
+  }, (err)=>{ console.warn('Gagal dengarkan pengaturan:', err); });
+
+  // Dengarkan tiap koleksi list secara real-time
+  const daftarKoleksi = {
+    mainSlider: 'mainSlider', runningText: 'runningText', infoSlide: 'infoSlide',
+    islamicEvent: 'islamicEvent', donasi: 'donasi', jumbotron: 'jumbotron'
+  };
+  Object.keys(daftarKoleksi).forEach((namaLokal)=>{
+    dbFirestore.collection(daftarKoleksi[namaLokal]).onSnapshot((snap)=>{
+      KONTEN[namaLokal] = snap.docs.map(d => d.data());
+      if(namaLokal === 'jumbotron'){
+        bangunDaftarJumbotron();
+      } else {
+        bangunDaftarInfoPromosi();
+        renderInfoTrack();
+      }
+    }, (err)=>{ console.warn('Gagal dengarkan '+namaLokal+':', err); });
+  });
 }
+
 
 // ---- 3b. Running text, info/promosi rotasi, badge hari besar ----
 function renderTicker(){
@@ -336,19 +371,25 @@ function idYoutubeDari(url){
   return m ? m[1] : null;
 }
 
-// ---- Blok INFO: rotasi teks setiap 8 detik, independen dari media ----
+// ---- Blok INFO: scroll vertikal berkelanjutan, header tetap di atas ----
 let infoItems = [];
-let infoIdx = 0;
 
-function renderInfoSaatIni(){
-  const el = document.getElementById('elInfoBlock');
+function renderInfoTrack(){
+  const track = document.getElementById('elInfoTrack');
   if(!infoItems.length){
-    el.innerHTML = '<div class="ip-label">INFO</div><div class="ip-title">Belum ada info</div>';
+    track.style.animation = 'none';
+    track.innerHTML = '<div class="info-item"><div class="ip-title">Belum ada info</div></div>';
     return;
   }
-  const item = infoItems[infoIdx % infoItems.length];
-  infoIdx++;
-  el.innerHTML = '<div class="ip-label">INFO</div><div class="ip-title">'+item.judul+'</div>'+(item.deskripsi ? '<div class="ip-desc">'+item.deskripsi+'</div>' : '');
+  // list digandakan 2x supaya animasi scroll bisa looping mulus tanpa "patah"
+  const htmlSatuSet = infoItems.map(item =>
+    '<div class="info-item"><div class="ip-title">'+item.judul+'</div>'+(item.deskripsi ? '<div class="ip-desc">'+item.deskripsi+'</div>' : '')+'</div>'
+  ).join('');
+  track.innerHTML = htmlSatuSet + htmlSatuSet;
+
+  // durasi scroll menyesuaikan jumlah item, supaya kecepatan bacanya konsisten
+  const durasiDetik = Math.max(infoItems.length * 6, 10);
+  track.style.animation = 'scroll-up '+durasiDetik+'s linear infinite';
 }
 
 // ---- Blok MEDIA: rotasi gambar/video/YouTube, video ditunggu sampai
@@ -415,6 +456,114 @@ function renderBadgeHariBesar(sekarang){
   }
 }
 
+// ---- Jumbotron: fullscreen media, sembunyi otomatis dekat waktu sholat ----
+let jumbotronItems = [];
+let jumbotronIdx = 0;
+let jumbotronTimerHandle = null;
+let jumbotronSedangTampil = false;
+
+function bangunDaftarJumbotron(){
+  jumbotronItems = KONTEN.jumbotron.map(item => ({
+    tipe: (item['Tipe (gambar/video/youtube)'] || '').toLowerCase().trim(),
+    url: item['URL'] || ''
+  })).filter(m => m.url);
+}
+
+function menitKeSholatBerikutnya(jadwal, sekarang){
+  let terdekat = Infinity;
+  WAKTU_SHOLAT_KEYS.forEach((key)=>{
+    const selisihMs = jadwal[key] - sekarang;
+    if(selisihMs > 0) terdekat = Math.min(terdekat, selisihMs / 60000);
+  });
+  return terdekat;
+}
+
+function renderJumbotronSaatIni(){
+  const el = document.getElementById('ovJumbotron');
+  if(!jumbotronItems.length) return;
+  let item = jumbotronItems[jumbotronIdx % jumbotronItems.length];
+  if(item.tipe === 'youtube' && !navigator.onLine && jumbotronItems.length > 1){
+    jumbotronIdx++;
+    item = jumbotronItems[jumbotronIdx % jumbotronItems.length];
+  }
+  jumbotronIdx++;
+
+  clearTimeout(jumbotronTimerHandle);
+  if(item.tipe === 'gambar'){
+    el.innerHTML = '<img src="'+item.url+'" class="jb-media">';
+    jumbotronTimerHandle = setTimeout(renderJumbotronSaatIni, 12000);
+  } else if(item.tipe === 'video'){
+    el.innerHTML = '<video src="'+item.url+'" class="jb-media" autoplay muted playsinline></video>';
+    el.querySelector('video').addEventListener('ended', renderJumbotronSaatIni);
+  } else if(item.tipe === 'youtube'){
+    const id = idYoutubeDari(item.url);
+    if(id){
+      el.innerHTML = '<iframe class="jb-media" src="https://www.youtube.com/embed/'+id+'?autoplay=1&mute=1&controls=0" allow="autoplay" frameborder="0"></iframe>';
+      jumbotronTimerHandle = setTimeout(renderJumbotronSaatIni, 30000);
+    } else {
+      jumbotronTimerHandle = setTimeout(renderJumbotronSaatIni, 1000);
+    }
+  }
+}
+
+function cekJumbotron(jadwal, sekarang){
+  if(!CONFIG.jumbotron || !CONFIG.jumbotron.aktif || !jumbotronItems.length) return;
+
+  const bolehTampil = modeAktif === 'normal' &&
+    menitKeSholatBerikutnya(jadwal, sekarang) > (CONFIG.jumbotron.sembunyikanMenitSebelum || 10);
+
+  if(bolehTampil && !jumbotronSedangTampil){
+    jumbotronSedangTampil = true;
+    document.getElementById('layarUtama').classList.add('tersembunyi');
+    document.getElementById('ovJumbotron').classList.add('active');
+    renderJumbotronSaatIni();
+  } else if(!bolehTampil && jumbotronSedangTampil){
+    jumbotronSedangTampil = false;
+    clearTimeout(jumbotronTimerHandle);
+    document.getElementById('layarUtama').classList.remove('tersembunyi');
+    document.getElementById('ovJumbotron').classList.remove('active');
+  }
+}
+
+// ---- Murattal terjadwal: putar audio X menit sebelum waktu sholat ----
+let murattalTriggerHariIni = new Set();
+
+function cekMurattal(jadwal, sekarang){
+  if(!CONFIG.murattal || !CONFIG.murattal.aktif || !CONFIG.murattal.file) return;
+  WAKTU_SHOLAT_KEYS.forEach((key)=>{
+    const waktuPutar = new Date(jadwal[key]);
+    waktuPutar.setMinutes(waktuPutar.getMinutes() - (CONFIG.murattal.menitSebelumAzan || 10));
+    const cocokMenit = sekarang.getHours() === waktuPutar.getHours() && sekarang.getMinutes() === waktuPutar.getMinutes();
+    const idHariIni = 'murattal-' + key + '-' + sekarang.toDateString();
+    if(cocokMenit && !murattalTriggerHariIni.has(idHariIni)){
+      murattalTriggerHariIni.add(idHariIni);
+      const audio = document.getElementById('audioMurattal');
+      audio.src = CONFIG.murattal.file;
+      audio.play().catch(()=>{});
+    }
+  });
+}
+
+// ---- Mode hemat energi: layar gelap total di luar jam aktif ----
+function dalamRentangJam(sekarang, mulaiStr, selesaiStr){
+  const [jm, mm] = mulaiStr.split(':').map(Number);
+  const [js, ms] = selesaiStr.split(':').map(Number);
+  const menitSekarang = sekarang.getHours()*60 + sekarang.getMinutes();
+  const menitMulai = jm*60 + mm;
+  const menitSelesai = js*60 + ms;
+  if(menitMulai <= menitSelesai) return menitSekarang >= menitMulai && menitSekarang < menitSelesai;
+  return menitSekarang >= menitMulai || menitSekarang < menitSelesai; // rentang melewati tengah malam
+}
+
+function cekHematEnergi(sekarang){
+  const el = document.getElementById('ovHematEnergi');
+  if(!CONFIG.hematEnergi || !CONFIG.hematEnergi.aktif){ el.classList.remove('active'); return; }
+
+  const gelap = dalamRentangJam(sekarang, CONFIG.hematEnergi.mulaiJam, CONFIG.hematEnergi.selesaiJam) && modeAktif === 'normal';
+  el.classList.toggle('active', gelap);
+}
+
+
 let jadwalHariIni = null;
 let tanggalTerakhirDihitung = null;
 
@@ -427,6 +576,7 @@ function tick(){
     jadwalHariIni = hitungJadwalHariIni(sekarang);
     tanggalTerakhirDihitung = tanggalHariIni;
     waktuTriggerHariIni.clear();
+    murattalTriggerHariIni.clear();
   }
 
   renderJamTanggal(sekarang);
@@ -434,25 +584,20 @@ function tick(){
   cekTriggerAzan(jadwalHariIni, sekarang);
   renderTicker();
   renderBadgeHariBesar(sekarang);
+  cekJumbotron(jadwalHariIni, sekarang);
+  cekMurattal(jadwalHariIni, sekarang);
+  cekHematEnergi(sekarang);
 }
 
 async function mulai(){
   renderProfil();
-  await sinkronisasiKonfigurasi();
-  renderProfil(); // render ulang kalau ada data baru dari sinkronisasi
+  pasangListenerFirestore(); // real-time: begitu ada perubahan di panel admin, layar auto-update
   bangunDaftarInfoPromosi();
-  renderInfoSaatIni();
-  setInterval(renderInfoSaatIni, 8000);
+  renderInfoTrack();
   renderMediaSaatIni();
+  bangunDaftarJumbotron();
   tick();
   setInterval(tick, (CONFIG.intervalUpdateDetik || 1) * 1000);
-
-  const menitSync = (CONFIG.sinkronisasi && CONFIG.sinkronisasi.intervalMenit) || 10;
-  setInterval(async ()=>{
-    await sinkronisasiKonfigurasi();
-    renderProfil();
-    bangunDaftarInfoPromosi();
-  }, menitSync * 60 * 1000);
 
   // Mode simulasi untuk testing: buka index.html?simulasi=azan atau
   // index.html?simulasi=jumat untuk lihat tampilannya tanpa perlu menunggu

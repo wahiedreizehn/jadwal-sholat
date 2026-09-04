@@ -14,6 +14,14 @@
     --bg-deep:#0d241b; --bg-panel:#123528; --gold:#c9a961; --gold-dim:#8a7442;
     --cream:#f3ede0; --cream-dim:#a9bdb0; --line:#2a4d3b;
   }
+  body[data-tema="simplicity"]{
+    --bg-deep:#f4f1ea; --bg-panel:#ffffff; --gold:#a67c3d; --gold-dim:#c8a877;
+    --cream:#26231c; --cream-dim:#6b6355; --line:#e2dccb;
+  }
+  body[data-tema="malam-biru"]{
+    --bg-deep:#0a1930; --bg-panel:#122a4a; --gold:#8fb8e0; --gold-dim:#5f89b8;
+    --cream:#eaf1fb; --cream-dim:#93a9c4; --line:#1e3a5f;
+  }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:var(--bg-deep);color:var(--cream);font-family:'Outfit',sans-serif;width:100%;height:100vh;overflow:hidden;}
   .screen{width:100%;height:100%;display:grid;grid-template-rows:auto 1fr;}
@@ -34,14 +42,19 @@
   .prayer-time{font-size:clamp(22px,3.6vw,44px);font-weight:500;margin-top:8px;font-variant-numeric:tabular-nums;}
 
   .konten-row{width:100%;max-width:1100px;margin:0 auto;display:flex;gap:16px;flex:1;min-height:0;}
-  .media-block, .info-block{background:var(--bg-panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;height:100%;display:flex;flex-direction:column;justify-content:center;padding:clamp(14px,2.2vh,20px) clamp(16px,2.6vw,26px);}
-  .media-block{flex:1.4;padding:0;justify-content:center;align-items:center;}
-  .info-block{flex:1;}
+  .media-block, .info-block{background:var(--bg-panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;height:100%;}
+  .media-block{flex:1.8;display:flex;justify-content:center;align-items:center;}
+  .info-block{flex:1;display:flex;flex-direction:column;}
   .media-block .ip-media{width:100%;height:100%;object-fit:cover;display:block;border:0;}
   .media-block .ip-empty{color:var(--cream-dim);font-size:clamp(12px,1.4vw,15px);}
-  .info-block .ip-label{font-size:clamp(10px,1.1vw,13px);color:var(--gold-dim);letter-spacing:0.06em;margin-bottom:6px;}
-  .info-block .ip-title{font-size:clamp(15px,1.8vw,22px);color:var(--gold);font-family:'Amiri',serif;}
-  .info-block .ip-desc{font-size:clamp(11px,1.3vw,15px);color:var(--cream-dim);margin-top:4px;}
+
+  .info-header{flex-shrink:0;font-size:clamp(10px,1.1vw,12px);color:var(--gold-dim);letter-spacing:0.06em;padding:clamp(10px,1.6vh,16px) clamp(14px,2vw,20px) 8px;border-bottom:1px solid var(--tv-line, var(--line));}
+  .info-scroll-wrap{flex:1;min-height:0;overflow:hidden;position:relative;}
+  .info-scroll-track{position:absolute;inset:0;display:flex;flex-direction:column;animation:scroll-up linear infinite;}
+  .info-item{padding:clamp(10px,1.8vh,16px) clamp(14px,2vw,20px);flex-shrink:0;}
+  .info-item .ip-title{font-size:clamp(13px,1.6vw,18px);color:var(--gold);font-family:'Amiri',serif;}
+  .info-item .ip-desc{font-size:clamp(11px,1.3vw,14px);color:var(--cream-dim);margin-top:3px;}
+  @keyframes scroll-up{0%{transform:translateY(0);}100%{transform:translateY(-50%);}}
 
   .event-badge{display:inline-flex;align-items:center;gap:6px;font-size:clamp(10px,1.1vw,12px);color:var(--gold);background:rgba(201,169,97,0.12);border:1px solid var(--gold-dim);border-radius:20px;padding:3px 10px;margin-top:6px;}
 
@@ -66,11 +79,22 @@
     padding:12px 28px;min-width:min(80vw,520px);
   }
   .overlay .jumat-msg{font-size:clamp(18px,2.4vw,28px);color:var(--cream);max-width:70vw;line-height:1.6;}
+
+  /* Jumbotron: fullscreen media, beda dari overlay azan/iqamah (tanpa background solid) */
+  #ovJumbotron{background:#000;display:none;}
+  #ovJumbotron.active{display:flex;}
+  #ovJumbotron .jb-media{width:100%;height:100%;object-fit:cover;border:0;}
+  #layarUtama{display:flex;flex-direction:column;height:100vh;transition:opacity 0.4s;}
+  #layarUtama.tersembunyi{display:none;}
+
+  /* Mode hemat energi: layar meredup gelap total di luar jam aktif */
+  #ovHematEnergi{position:fixed;inset:0;background:#000;display:none;z-index:50;}
+  #ovHematEnergi.active{display:block;}
 </style>
 </head>
 <body>
 
-<div class="screen">
+<div class="screen" id="layarUtama">
   <header>
     <div style="display:flex;align-items:center;gap:16px;">
       <img id="elLogo" src="" alt="" style="display:none;height:clamp(36px,5vh,64px);width:auto;">
@@ -89,7 +113,12 @@
     <div id="elJadwal"></div>
     <div class="konten-row">
       <div class="media-block" id="elMediaBlock"></div>
-      <div class="info-block" id="elInfoBlock"></div>
+      <div class="info-block">
+        <div class="info-header">INFO</div>
+        <div class="info-scroll-wrap">
+          <div class="info-scroll-track" id="elInfoTrack"></div>
+        </div>
+      </div>
     </div>
   </main>
   <div class="ticker-wrap">
@@ -118,9 +147,25 @@
   <div class="jumat-msg" id="ovJumatPesan">-</div>
 </div>
 
+<!-- Layar Tarawih (Ramadhan) -->
+<div class="overlay" id="ovTarawih">
+  <div class="label">RAMADHAN MUBARAK</div>
+  <h1>Shalat Tarawih</h1>
+</div>
+
+<!-- Jumbotron: fullscreen media, otomatis sembunyi dekat waktu sholat -->
+<div class="overlay" id="ovJumbotron"></div>
+
+<!-- Mode hemat energi: layar gelap total di luar jam aktif -->
+<div id="ovHematEnergi"></div>
+
 <audio id="audioAzan" preload="auto"></audio>
+<audio id="audioMurattal" preload="auto"></audio>
 
 <script src="vendor/adhan.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 <script>
